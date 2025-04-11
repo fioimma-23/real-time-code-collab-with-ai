@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # D_CODE
 
 Backend --> Rust
