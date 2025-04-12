@@ -1,7 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useApplyTheme } from "../hooks/useApplyTheme";
 
 const History = () => {
+  useApplyTheme();
   const navigate = useNavigate();
 
   const previousFiles = [
@@ -23,11 +25,11 @@ const History = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-neonGreen font-mono p-8">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-mono p-8">
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
-        className="mb-6 text-neonGreen border border-neonGreen px-4 py-2 rounded hover:bg-neonGreen hover:text-black transition"
+        className="mb-6 text-[var(--text)] border border-[var(--text)] px-4 py-2 rounded hover:bg-[var(--text)] hover:text-[var(--bg)] transition"
       >
         ← Back
       </button>
@@ -40,7 +42,7 @@ const History = () => {
           {previousFiles.map((file, idx) => (
             <li
               key={idx}
-              className="bg-[#0f1117] border border-neonGreen p-4 rounded"
+              className="bg-[color:var(--card)] border border-neonGreen p-4 rounded"
             >
               <p className="font-bold">{file.name}</p>
               <p className="text-sm text-gray-400">
@@ -57,7 +59,7 @@ const History = () => {
           {rooms.map((room, idx) => (
             <li
               key={idx}
-              className="bg-[#0f1117] border border-neonGreen p-4 rounded"
+              className="bg-[color:var(--card)] border border-neonGreen p-4 rounded"
             >
               <p className="font-bold">Room ID: {room.id}</p>
               <p className="text-sm">

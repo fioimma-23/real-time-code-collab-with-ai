@@ -1,3 +1,75 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+body.theme-dark {
+  --bg: #000000;
+  --text: #39ff14;
+}
+
+body.theme-light {
+  --bg: #ffffff;
+  --text: #0a0a0a;
+}
+
+body.theme-mono {
+  --bg: #1c1c1c;
+  --text: #d3d3d3;
+}
+
+body.theme-github {
+  --bg: #f6f8fa;
+  --text: #24292f;
+}
+
+body.theme-github-dark {
+  --bg: #0d1117;
+  --text: #c9d1d9;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Fira Code', monospace;
+}
+
+
+.text-neonGreen {
+  color: #39ff14;
+}
+
+.border-neonGreen {
+  border-color: #39ff14;
+}
+
+.bg-neonGreen {
+  background-color: #39ff14;
+}
+
+
+.inline-user-label {
+  color: #39ff14;
+  font-style: italic;
+  margin-left: 1rem;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #39ff14;
+  border-radius: 6px;
+}
+
+textarea {
+  caret-color: #39ff14;
+}
