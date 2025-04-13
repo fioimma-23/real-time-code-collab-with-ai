@@ -1,0 +1,26 @@
+# Ignore the 'target' directory
+target/
+
+# Node.js dependencies (if applicable)
+node_modules/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Build artifacts
+dist/
+build/
+
+# macOS-related files
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Compiled files
+*.class
+*.pyc
