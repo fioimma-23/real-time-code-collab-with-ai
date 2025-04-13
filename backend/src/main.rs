@@ -11,13 +11,17 @@ mod model;
 mod connection {
     pub mod auth;
     pub mod firebase;
+    pub mod real_time; 
 }
 mod routers {
     pub mod login;
     pub mod project;
 }
 
+
+
 use connection::firebase::FirebaseService;
+use crate::connection::real_time::RealtimeDatabaseService;
 
 use routers::login::auth_routes;
 use routers::project::project_routes;
@@ -29,6 +33,9 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Access token: {}", firebase.access_token);
 
+    let realtime_db = RealtimeDatabaseService::new("dcode-7b1a0", &firebase.access_token).await;
+    println!("Realtime Database Service initialized with project ID: {}", realtime_db.project_id);
+    println!("Access token: {}", realtime_db.access_token);
     // ✅ CORS setup
     let cors = CorsLayer::new()
     .allow_origin([
