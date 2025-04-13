@@ -15,9 +15,9 @@ mod connection {
 
 // routers
 mod routers {
-    pub mod auth_router;
+    pub mod login;
 }
-use routers::auth_router::auth_routes;
+use routers::login::auth_routes;
 
 use connection::firebase::FirebaseService;
 
