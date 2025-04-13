@@ -7,6 +7,14 @@ Frontend --> TypeScript , (try  to  use redux)
 CSS --> 
 ui --> MaterialUI
 
+# GITHUB PUSH
+pwd
+git remote -v
+git pull origin main --allow-unrelated-histories
+git add .
+git commit -m "Moved project to frontend folder"
+git push origin main
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
