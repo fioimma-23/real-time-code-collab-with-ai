@@ -1,20 +1,44 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import axios from "axios"; // Import axios
 import { useApplyTheme } from "../hooks/useApplyTheme";
+import { setAuthField } from "../redux/Slices/authSlice";
 
 const SignIn = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null); // To handle form errors
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   useApplyTheme();
 
-  const handleSignIn = () => {
-    if (username && password) {
-      navigate("/home");
-    } else {
-      alert("Please fill in all fields.");
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    if (!username || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+  
+    try {
+      const response = await axios.post("https://your-api-endpoint.com/signin", {
+        username,
+        password,
+      });
+  
+      if (response.data.success) {
+        dispatch(setAuthField({ field: "username", value: username }));
+        dispatch(setAuthField({ field: "password", value: password }));
+        navigate("/home");
+      } else {
+        setError(response.data.message || "Something went wrong.");
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to sign in. Please try again.");
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col items-center justify-center font-mono px-4">

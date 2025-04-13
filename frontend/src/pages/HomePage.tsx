@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Folder, PlusCircle, User } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import { useDispatch } from "react-redux"; // Import dispatch
+import { setProjectName } from "../redux/Slices/projectSlice"; // Import the action
 import { useApplyTheme } from "../hooks/useApplyTheme";
 
 const HomePage = () => {
   useApplyTheme();
+  const dispatch = useDispatch(); // Initialize dispatch
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("none");
-  const [projectName, setProjectName] = useState("");
+  const [projectName, setProjectNameState] = useState("");  // No need for projectId now
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -18,13 +21,11 @@ const HomePage = () => {
 
   const rooms = [
     {
-      id: "room1234",
       projectName: "React Dashboard",
       collaborators: ["Ananya", "Ajay"],
       date: "2025-04-08",
     },
     {
-      id: "room5678",
       projectName: "Python ML Bot",
       collaborators: ["Chaai"],
       date: "2025-04-06",
@@ -32,16 +33,21 @@ const HomePage = () => {
   ];
 
   const handleJoinRoom = () => {
-    const newRoomId = Math.random().toString(36).substring(2, 10);
+    // Dispatch the action when joining the room
+    dispatch(setProjectName(projectName || ""));  // Save project name to Redux store
     navigate(`/join`);
   };
 
-  const handleFileClick = (fileName: string, roomId: string) => {
-    navigate(`/editor/${roomId}`, { state: { fileName } });
+  const handleFileClick = (fileName: string) => {
+    // Dispatch the action when opening a file
+    dispatch(setProjectName(fileName));  // Save file name to Redux store
+    navigate(`/editor`, { state: { fileName } });
   };
 
   const handleRoomClick = (room: typeof rooms[0]) => {
-    navigate(`/editor/${room.id}`, { state: { fileName: room.projectName } });
+    // Dispatch the action when selecting a room
+    dispatch(setProjectName(room.projectName));  // Save room's project name to Redux store
+    navigate(`/editor`, { state: { fileName: room.projectName } });
   };
 
   const handleLogout = () => {
@@ -149,7 +155,10 @@ const HomePage = () => {
                 type="text"
                 placeholder="Enter project name..."
                 value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
+                onChange={(e) => {
+                  setProjectNameState(e.target.value);  // Update local state
+                  dispatch(setProjectName(e.target.value));  // Dispatch the action to Redux store
+                }}
                 className="w-full px-4 py-2 bg-transparent border border-[var(--text)] rounded text-[var(--text)] mb-6 focus:outline-none focus:ring-2 focus:ring-[var(--text)]"
               />
               <button
@@ -167,12 +176,11 @@ const HomePage = () => {
                 <h2 className="text-2xl font-bold mb-4">File History</h2>
                 <ul className="space-y-2 text-[var(--text)]/90">
                   {previousFiles.map((file, idx) => {
-                    const room = rooms[idx]; // Assuming matching index
                     return (
                       <li
                         key={idx}
                         className="border border-[var(--text)] rounded px-4 py-2 hover:bg-[var(--text)] hover:text-black transition cursor-pointer"
-                        onClick={() => handleFileClick(file.name, room?.id || "default-room")}
+                        onClick={() => handleFileClick(file.name)}
                       >
                         {file.name} — Last Modified: {file.lastModified}
                       </li>
@@ -191,7 +199,6 @@ const HomePage = () => {
                       onClick={() => handleRoomClick(room)}
                     >
                       <div className="font-semibold">{room.projectName}</div>
-                      <div>Room ID: {room.id}</div>
                       <div>Collaborators: {room.collaborators.join(", ")}</div>
                       <div>Date: {room.date}</div>
                     </li>
