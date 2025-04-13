@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
+import axios from "axios";
 import { useApplyTheme } from "../hooks/useApplyTheme";
 import { setAuthField } from "../redux/Slices/authSlice";
 
@@ -8,28 +9,46 @@ const SignUp = () => {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   useApplyTheme();
 
-  const handleSignUp = () => {
-    if (username && displayName && password && confirmPassword) {
-
-
-      if (password !== confirmPassword) {
-        alert("Passwords do not match!");
-        return;
-      }
-
-      dispatch(setAuthField({ field: "username", value: username }));
-      dispatch(setAuthField({ field: "displayName", value: displayName }));
-      dispatch(setAuthField({ field: "password", value: password }));
-      dispatch(setAuthField({ field: "confirmPassword", value: confirmPassword }));
-      navigate("/home");
-    } else {
+  const handleSignUp = async () => {
+    if (!username || !displayName || !password || !confirmPassword) {
       alert("Please fill in all fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+
+    const payload = {
+      username,
+      displayName,
+      password,
+      email,
+    };
+
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/auth/register", payload); // replace URL
+
+      if (response.status === 201 || response.status === 200) {
+        // Optionally dispatch
+        dispatch(setAuthField({ field: "username", value: username }));
+        dispatch(setAuthField({ field: "displayName", value: displayName }));
+        dispatch(setAuthField({ field: "password", value: password }));
+        navigate("/home");
+      } else {
+        alert("Signup failed. Try again.");
+      }
+    } catch (error) {
+      console.error("Signup Error:", error);
+      alert("An error occurred during signup.");
     }
   };
 
@@ -53,7 +72,13 @@ const SignUp = () => {
           onChange={(e) => setDisplayName(e.target.value)}
           className="w-full bg-transparent border border-[var(--text)] text-[var(--text)] px-4 py-2 rounded mb-4 focus:outline-none"
         />
-
+          <input
+          type="email"
+          placeholder="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full bg-transparent border border-[var(--text)] text-[var(--text)] px-4 py-2 rounded mb-4 focus:outline-none"
+        />
         <input
           type="password"
           placeholder="Password"

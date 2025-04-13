@@ -1,55 +1,56 @@
 use axum::{routing::get, Router};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+// use http::header::{AUTHORIZATION, CONTENT_TYPE, ACCEPT};
+use http::{Method, header::{AUTHORIZATION, CONTENT_TYPE, ACCEPT}};
 
-// model
+
+// modules
 mod model;
-
-
-// connection 
 mod connection {
     pub mod auth;
     pub mod firebase;
 }
-
-// routers
 mod routers {
     pub mod login;
+    pub mod project;
 }
-use routers::login::auth_routes;
 
 use connection::firebase::FirebaseService;
 
+use routers::login::auth_routes;
+use routers::project::project_routes;
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     // ✅ Initialize Firebase
     let firebase = Arc::new(FirebaseService::new().await);
 
     println!("Access token: {}", firebase.access_token);
 
+    // ✅ CORS setup
+    let cors = CorsLayer::new()
+    .allow_origin([
+        "http://localhost:3000".parse().unwrap(),
+        "http://127.0.0.1:3000".parse().unwrap(),
+        "http://localhost:8080".parse().unwrap(),
+    ])
+    .allow_methods([Method::GET, Method::POST, Method::OPTIONS]) // ✅ No wildcard
+    .allow_headers([AUTHORIZATION, CONTENT_TYPE, ACCEPT])
+    .allow_credentials(true);
+
     // ✅ Build Axum app
-    // let app = Router::new().route("/", get({
-    //     let firebase = Arc::clone(&firebase);
-    //     move || handler(firebase)
-    // }));
-
     let app = Router::new()
-    .nest("/auth", auth_routes(Arc::clone(&firebase)))
-    .route("/", get(|| async { "Hello, Axum with Firebase 🔥" }));
+        .nest("/auth", auth_routes(Arc::clone(&firebase)))
+        .nest("/project", project_routes(Arc::clone(&firebase)))
+        .layer(cors);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
     let listener = TcpListener::bind(addr).await?;
-    println!("Listening on http://{}", addr);
+    println!("🚀 Listening on http://{}", addr);
 
-    // ✅ Start Axum server
     axum::serve(listener, app).await?;
 
     Ok(())
 }
-
-// ✅ HTTP Handler
-/* async fn handler(firebase: Arc<FirebaseService>) -> String {
-    firebase.test_connection().await;
-    "Hello, Axum v0.8 + Firebase connected!".to_string()
-} */
