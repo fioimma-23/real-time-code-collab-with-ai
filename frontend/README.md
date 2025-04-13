@@ -13,6 +13,7 @@ git remote -v
 git pull origin main --allow-unrelated-histories
 git add .
 git commit -m "Moved project to frontend folder"
+git pull origin main --rebase 
 git push origin main
 
 # Getting Started with Create React App
