@@ -18,6 +18,8 @@ reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 yup-oauth2 = "8.3.1"
 anyhow = "1.0"
 http = "1.0"
+validator = "0.16"  # For payload validation
+
 
 [watch]
 ignore = ["tmp/*", "*.md"]

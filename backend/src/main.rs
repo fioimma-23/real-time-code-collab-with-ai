@@ -1,4 +1,4 @@
-use axum::{routing::get, Router};
+use axum::Router;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
@@ -33,10 +33,11 @@ async fn main() -> anyhow::Result<()> {
     let cors = CorsLayer::new()
     .allow_origin([
         "http://localhost:3000".parse().unwrap(),
+        "http://localhost:5173".parse().unwrap(),
         "http://127.0.0.1:3000".parse().unwrap(),
         "http://localhost:8080".parse().unwrap(),
     ])
-    .allow_methods([Method::GET, Method::POST, Method::OPTIONS]) // ✅ No wildcard
+    .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
     .allow_headers([AUTHORIZATION, CONTENT_TYPE, ACCEPT])
     .allow_credentials(true);
 

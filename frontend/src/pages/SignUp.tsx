@@ -29,13 +29,13 @@ const SignUp = () => {
 
     const payload = {
       username,
-      displayName,
+      display_name: displayName,
       password,
       email,
     };
 
     try {
-      const response = await axios.post("http://127.0.0.1:5000/auth/register", payload); // replace URL
+      const response = await axios.post("http://localhost:5000/auth/register", payload); // replace URL
 
       if (response.status === 201 || response.status === 200) {
         // Optionally dispatch
@@ -47,8 +47,11 @@ const SignUp = () => {
         alert("Signup failed. Try again.");
       }
     } catch (error) {
-      console.error("Signup Error:", error);
-      alert("An error occurred during signup.");
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || "Registration failed");
+      } else {
+        alert("An unexpected error occurred");
+      }
     }
   };
 
