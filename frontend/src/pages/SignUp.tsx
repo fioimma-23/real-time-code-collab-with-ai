@@ -1,18 +1,32 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { useApplyTheme } from "../hooks/useApplyTheme";
+import { setAuthField } from "../redux/Slices/authSlice";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");
-  const [displayName, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useApplyTheme();
 
   const handleSignUp = () => {
     if (username && displayName && password && confirmPassword) {
+
+
+      if (password !== confirmPassword) {
+        alert("Passwords do not match!");
+        return;
+      }
+
+      dispatch(setAuthField({ field: "username", value: username }));
+      dispatch(setAuthField({ field: "displayName", value: displayName }));
+      dispatch(setAuthField({ field: "password", value: password }));
+      dispatch(setAuthField({ field: "confirmPassword", value: confirmPassword }));
       navigate("/home");
     } else {
       alert("Please fill in all fields.");
@@ -36,7 +50,7 @@ const SignUp = () => {
           type="text"
           placeholder="Display Name"
           value={displayName}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setDisplayName(e.target.value)}
           className="w-full bg-transparent border border-[var(--text)] text-[var(--text)] px-4 py-2 rounded mb-4 focus:outline-none"
         />
 
