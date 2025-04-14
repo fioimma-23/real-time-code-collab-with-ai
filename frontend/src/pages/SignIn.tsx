@@ -1,20 +1,54 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import axios from "axios"; // Import axios
 import { useApplyTheme } from "../hooks/useApplyTheme";
+import { setAuthField } from "../redux/Slices/authSlice";
 
 const SignIn = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null); // To handle form errors
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   useApplyTheme();
 
-  const handleSignIn = () => {
-    if (username && password) {
-      navigate("/home");
-    } else {
-      alert("Please fill in all fields.");
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!username || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    const payload = {
+      username,
+      password,
+    }
+    try {
+      const response = await axios.post("http://localhost:5000/auth/login",
+        payload,
+      );
+      console.log(response.data);
+      if (response.status === 201 || response.status === 200) {
+        dispatch(setAuthField({ field: "username", value: username }));
+        dispatch(setAuthField({ field: "password", value: password }));
+        navigate("/home");
+      } else {
+        setError(response.data.message || "Something went wrong.");
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setError("User not found");
+      } else if (err.response?.status === 401) {
+        setError("Incorrect password");
+      } else if (err.response?.status === 500) {
+        setError("Server error. Please try again later.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col items-center justify-center font-mono px-4">

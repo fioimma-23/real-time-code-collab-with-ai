@@ -3,41 +3,52 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useApplyTheme } from "../hooks/useApplyTheme";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import {
-  Play,
-  MessageCircle,
-  Users,
-  Settings,
-  Share2,
-  FileText,
-  X,
+  Play, MessageCircle, Users, Settings,
+  Share2, FileText, X,
 } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchFileById, updateFileContent } from "../redux/Slices/fileSlice";
+import { RootState, AppDispatch } from "../redux/store";
+import { useFileSocket } from "../hooks/useFileSocket";
 
 const EditorPage = () => {
-  const { roomId } = useParams();
+  const { projectId, fileId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   useApplyTheme();
-
   const monaco = useMonaco();
   const editorRef = useRef<any>(null);
 
-  const [code, setCode] = useState(`#include <stdio.h>\n\nint main() {\n    printf("Hello, world!\\n");\n    return 0;\n}`);
-  const [output, setOutput] = useState("");
+  const currentUser = "Ananya";
   const [lineEditors, setLineEditors] = useState<{ [line: number]: string }>({});
-
-  const currentUser = "Ananya"; // In real usage, get from auth/session
   const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCollaborators, setShowCollaborators] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
   const [darkTheme, setDarkTheme] = useState(true);
   const [autosave, setAutosave] = useState(false);
-
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState("");
-  const [collaborators, setCollaborators] = useState<string[]>(["Ananya", "Ajay", "Sai"]);
+  const [collaborators] = useState<string[]>(["Ananya", "Ajay", "Sai"]);
+
+  const { activeFile, loading } = useSelector((state: RootState) => state.file);
+  const content = activeFile?.content || "";
+  const [localCode, setLocalCode] = useState("");
+
+  const { emitFileUpdate } = useFileSocket(projectId!, fileId!);
+
+  useEffect(() => {
+    if (projectId && fileId) {
+      dispatch(fetchFileById({ projectId, fileId }));
+    }
+  }, [projectId, fileId, dispatch]);
+
+  useEffect(() => {
+    setLocalCode(content);
+  }, [content]);
 
   const editorDidMount = (editor: any) => {
     editorRef.current = editor;
-
     editor.onDidChangeCursorPosition((e: any) => {
       const line = e.position.lineNumber;
       setLineEditors((prev) => ({ ...prev, [line]: currentUser }));
@@ -46,7 +57,6 @@ const EditorPage = () => {
 
   useEffect(() => {
     if (!monaco || !editorRef.current) return;
-
     const decorations = Object.entries(lineEditors).map(([line, user]) => ({
       range: new monaco.Range(Number(line), 1, Number(line), 1),
       options: {
@@ -57,16 +67,22 @@ const EditorPage = () => {
         },
       },
     }));
-
     editorRef.current.deltaDecorations([], decorations);
   }, [lineEditors, monaco]);
 
   const handleRun = () => {
-    if (code.includes('printf("Hello, world!')) {
-      setOutput("Hello, world!");
+    if (localCode.includes('printf("Hello, world!')) {
+      alert("Hello, world!");
     } else {
-      setOutput("Code ran successfully.");
+      alert("Code ran successfully.");
     }
+  };
+
+  const handleChange = (value: string | undefined) => {
+    const updated = value || "";
+    setLocalCode(updated);
+    dispatch(updateFileContent({ fileId: fileId!, content: updated }));
+    emitFileUpdate(updated);
   };
 
   const handleSendMessage = () => {
@@ -80,7 +96,7 @@ const EditorPage = () => {
     <div className="h-screen flex bg-[var(--bg)] text-[var(--text)] font-mono">
       {/* Sidebar */}
       <div className="w-14 bg-[var(--bg-dark)] flex flex-col items-center py-4 space-y-6 border-r border-neonGreen">
-        <FileText className="text-neonGreen w-5 h-5 hover:text-white" />
+        <FileText onClick={() => setShowFiles(!showFiles)} className="text-neonGreen w-5 h-5 hover:text-white cursor-pointer" />
         <MessageCircle onClick={() => setShowChat(!showChat)} className="cursor-pointer text-neonGreen w-5 h-5 hover:text-white" />
         <Play onClick={handleRun} className="cursor-pointer text-neonGreen w-5 h-5 hover:text-white" />
         <Users onClick={() => setShowCollaborators(!showCollaborators)} className="cursor-pointer text-neonGreen w-5 h-5 hover:text-white" />
@@ -88,25 +104,43 @@ const EditorPage = () => {
         <Share2 className="text-neonGreen w-5 h-5 hover:text-white" />
       </div>
 
+      {/* File Sidebar */}
+      {showFiles && (
+        <div className="w-64 bg-[var(--bg-dark)] border-r border-neonGreen flex flex-col p-2 text-white">
+          <div className="flex justify-between items-center text-neonGreen font-bold mb-2">
+            <span>Files</span>
+            <X size={16} className="cursor-pointer hover:text-red-500" onClick={() => setShowFiles(false)} />
+          </div>
+          <div className="flex flex-col gap-2 px-2">
+            <div className="text-yellow-400">JS <span className="text-white">index.js</span></div>
+          </div>
+          <div className="mt-auto p-2 border-t border-neonGreen">
+            📂 <span className="text-sm">Open File/Folder</span>
+          </div>
+        </div>
+      )}
+
       {/* Main Editor */}
       <div className="flex-1 flex flex-col m-4 border border-neonGreen rounded overflow-hidden">
-        {/* Topbar */}
         <div className="bg-[var(--bg)] text-neonGreen font-bold p-2 text-sm border-b border-neonGreen flex justify-between items-center">
-          <span>Room: {roomId}</span>
-          <button onClick={() => navigate("/home")} className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded">
+          <span>Room: {projectId}/{fileId}</span>
+          <button
+            onClick={() => navigate("/home")}
+            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded"
+          >
             Leave
           </button>
         </div>
 
-        {/* Monaco Editor */}
         <div className="flex-1">
           <Editor
             height="100%"
             defaultLanguage="c"
-            value={code}
-            onChange={(value) => setCode(value || "")}
+            value={localCode}
+            onChange={handleChange}
             onMount={editorDidMount}
             theme={darkTheme ? "vs-dark" : "light"}
+            loading={loading ? "Loading file..." : undefined}
             options={{
               fontSize: 14,
               fontFamily: "monospace",
@@ -115,21 +149,9 @@ const EditorPage = () => {
             }}
           />
         </div>
-
-        {/* Run Output */}
-        <div className="bg-[var(--bg-dark)] border-t border-neonGreen p-4">
-          <p className="text-neonGreen font-bold mb-2">Run Code</p>
-          <button onClick={handleRun} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded mb-4">
-            Run
-          </button>
-          <div className="text-white bg-[var(--bg)] border border-neonGreen rounded p-4 whitespace-pre-wrap">
-            <p className="text-neonGreen mb-2">Output:</p>
-            {output || "Your output will appear here..."}
-          </div>
-        </div>
       </div>
 
-      {/* Chat Sidebar */}
+      {/* Chat */}
       {showChat && (
         <div className="w-80 bg-[var(--bg-dark)] border-l border-neonGreen flex flex-col">
           <div className="p-2 border-b border-neonGreen text-neonGreen font-bold flex items-center justify-between">
@@ -138,9 +160,7 @@ const EditorPage = () => {
           </div>
           <div className="flex-1 p-2 overflow-y-auto space-y-2">
             {messages.map((msg, idx) => (
-              <div key={idx} className="text-sm bg-[var(--bg)] p-2 rounded text-white">
-                {msg}
-              </div>
+              <div key={idx} className="text-sm bg-[var(--bg)] p-2 rounded text-white">{msg}</div>
             ))}
           </div>
           <div className="p-2 border-t border-neonGreen">
@@ -156,7 +176,7 @@ const EditorPage = () => {
         </div>
       )}
 
-      {/* Settings Sidebar */}
+      {/* Settings */}
       {showSettings && (
         <div className="w-80 bg-[var(--bg-dark)] border-l border-neonGreen p-4">
           <div className="flex items-center justify-between text-neonGreen font-bold border-b border-neonGreen mb-4">
@@ -174,7 +194,7 @@ const EditorPage = () => {
         </div>
       )}
 
-      {/* Collaborators Sidebar */}
+      {/* Collaborators */}
       {showCollaborators && (
         <div className="w-80 bg-[var(--bg-dark)] border-l border-neonGreen p-4">
           <div className="flex items-center justify-between text-neonGreen font-bold border-b border-neonGreen mb-4">

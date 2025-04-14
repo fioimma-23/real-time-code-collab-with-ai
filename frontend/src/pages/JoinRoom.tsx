@@ -1,16 +1,20 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { User, LogOut } from "lucide-react";
 import { useApplyTheme } from "../hooks/useApplyTheme";
+import { setRoomId } from "../redux/Slices/roomSlice";
 
 const JoinRoom = () => {
   useApplyTheme();
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomIdState] = useState(""); // Renamed to avoid conflict
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleJoin = () => {
     if (roomId) {
+      dispatch(setRoomId(roomId)); 
       navigate(`/editor/${roomId}`);
     } else {
       alert("Please enter Room ID.");
@@ -19,7 +23,7 @@ const JoinRoom = () => {
 
   const generateRoomId = () => {
     const id = Math.random().toString(36).substring(2, 10);
-    setRoomId(id);
+    setRoomIdState(id); // Updated to use the renamed function
   };
 
   const handleLogout = () => {
@@ -80,7 +84,7 @@ const JoinRoom = () => {
             type="text"
             placeholder="Room ID"
             value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
+            onChange={(e) => setRoomIdState(e.target.value)} // Updated to use the renamed function
             className="w-full bg-transparent border border-neonGreen text-neonGreen px-4 py-2 rounded mb-4 focus:outline-none"
           />
 
