@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Folder, PlusCircle, User } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { setProjectName } from "../redux/Slices/projectSlice";
 import { useApplyTheme } from "../hooks/useApplyTheme";
 import { useData } from "../context/DataContext"; 
 import { postNewProject } from "../redux/Actions/projectAction"; 
@@ -9,13 +10,13 @@ import type { AppDispatch } from "../redux/store";
 
 const HomePage = () => {
   useApplyTheme();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { user, setUser } = useData(); 
+  const { user, setUser } = useData();
 
-  const dispatch = useDispatch<AppDispatch>();  
   const { loading, error, projectName: projectStateName } = useSelector(
     (state: any) => state.project
-  );  
+  );
 
   const [activeTab, setActiveTab] = useState("none");
   const [projectName, setProjectNameState] = useState(projectStateName || "");
@@ -26,24 +27,25 @@ const HomePage = () => {
 
   const handleJoinRoom = async () => {
     if (!projectName.trim()) return;
-    dispatch(postNewProject(projectName));  
-    
+    dispatch(postNewProject(projectName));
+
     if (!loading && !error) {
       navigate(`/join`);
     }
   };
 
   const handleFileClick = (fileId: string) => {
-    navigate(`/editor`, { state: { fileId } });  // Pass the file ID to the editor
+    navigate(`/editor`, { state: { fileId } });
   };
 
   const handleRoomClick = (room: typeof rooms[0]) => {
+    dispatch(setProjectName(room.projectName));
     navigate(`/editor`, { state: { fileName: room.projectName } });
   };
 
   const handleLogout = () => {
     localStorage.clear();
-    setUser(null); 
+    setUser(null);
     navigate("/");
   };
 
@@ -75,8 +77,7 @@ const HomePage = () => {
 
   useEffect(() => {
     if (activeTab === "existing") {
-      // replace with actual project id
-      const projectId = "sample";  
+      const projectId = "sample";
       fetchProjectDetails(projectId);
     }
   }, [activeTab]);
@@ -171,17 +172,17 @@ const HomePage = () => {
                 type="text"
                 placeholder="Enter project name..."
                 value={projectName}
-                onChange={(e) => setProjectNameState(e.target.value)}  
+                onChange={(e) => setProjectNameState(e.target.value)}
                 className="w-full px-4 py-2 bg-transparent border border-[var(--text)] rounded text-[var(--text)] mb-6 focus:outline-none focus:ring-2 focus:ring-[var(--text)]"
               />
               <button
                 onClick={handleJoinRoom}
                 className="w-full bg-[var(--text)] text-black font-bold py-2 rounded hover:bg-green-400 transition"
-                disabled={loading}  
+                disabled={loading}
               >
                 {loading ? "Creating..." : "Join Room"}
               </button>
-              {error && <p className="mt-4 text-red-500">{error}</p>}  {/* Display error */}
+              {error && <p className="mt-4 text-red-500">{error}</p>}
             </div>
           )}
 
@@ -190,17 +191,15 @@ const HomePage = () => {
               <div>
                 <h2 className="text-2xl font-bold mb-4">File History</h2>
                 <ul className="space-y-2 text-[var(--text)]/90">
-                  {previousFiles.map((file, idx) => {
-                    return (
-                      <li
-                        key={idx}
-                        className="border border-[var(--text)] rounded px-4 py-2 hover:bg-[var(--text)] hover:text-black transition cursor-pointer"
-                        onClick={() => handleFileClick(file.id)}  // Pass file ID here
-                      >
-                        {file.name} — Last Modified: {file.lastModified}
-                      </li>
-                    );
-                  })}
+                  {previousFiles.map((file, idx) => (
+                    <li
+                      key={idx}
+                      className="border border-[var(--text)] rounded px-4 py-2 hover:bg-[var(--text)] hover:text-black transition cursor-pointer"
+                      onClick={() => handleFileClick(file.id)}
+                    >
+                      {file.name} — Last Modified: {file.lastModified}
+                    </li>
+                  ))}
                 </ul>
               </div>
 
@@ -213,7 +212,9 @@ const HomePage = () => {
                       className="border border-[var(--text)] rounded px-4 py-2 hover:bg-[var(--text)] hover:text-black transition cursor-pointer"
                       onClick={() => handleRoomClick(room)}
                     >
-                      {room.projectName} — Collaborators: {room.collaborators.length}
+                      <div className="font-semibold">{room.projectName}</div>
+                      <div>Collaborators: {room.collaborators.join(", ")}</div>
+                      <div>Date: {room.date}</div>
                     </li>
                   ))}
                 </ul>
