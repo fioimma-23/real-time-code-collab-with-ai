@@ -8,13 +8,18 @@ authors = ["Ajay Surya", "Sai Kumar"]
 axum = "0.8.3"
 tokio = { version = "1", features = ["full"] }
 tower = "0.5.2"
+tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
-uuid = { version = "1.16.0", features = ["serde", "v4"] }
+uuid = { version = "1", features = ["serde", "v4"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 yup-oauth2 = "8.3.1"
+anyhow = "1.0"
+http = "1.0"
+validator = "0.16"  # For payload validation
+
 
 [watch]
 ignore = ["tmp/*", "*.md"]

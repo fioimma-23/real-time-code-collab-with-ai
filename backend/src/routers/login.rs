@@ -1,7 +1,9 @@
 use axum::{
-    routing::{get, post},
+    routing:: post,
     Json, Router,
 };
+use axum::http::StatusCode;
+use serde_json::Value;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -13,7 +15,7 @@ pub fn auth_routes(firebase: Arc<FirebaseService>) -> Router {
     Router::new()
         .route(
             "/login",
-            get({
+            post({
                 let firebase = Arc::clone(&firebase);
                 move |payload| login_handler(firebase, payload)
             }),
@@ -33,6 +35,12 @@ pub struct AuthPayload {
     pub password: String,
     pub display_name: String,
     pub username: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginPayload {
+    pub username: String, 
+    pub password: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -107,10 +115,11 @@ async fn register_handler(
     })
 }
 
+
 async fn login_handler(
     firebase: Arc<FirebaseService>,
-    Json(payload): Json<AuthPayload>,
-) -> Json<AuthResponse> {
+    Json(payload): Json<LoginPayload>,
+) -> Result<Json<AuthResponse>, StatusCode> {
     println!("🚀 Login attempt: {:?}", payload);
 
     let project_id = "dcode-7b1a0";
@@ -126,55 +135,54 @@ async fn login_handler(
             "from": [{ "collectionId": collection_name }],
             "where": {
                 "fieldFilter": {
-                    "field": { "fieldPath": "email" },
+                    "field": { "fieldPath": "username" },
                     "op": "EQUAL",
-                    "value": { "stringValue": payload.email }
+                    "value": { "stringValue": payload.username }
                 }
             },
             "limit": 1
         }
     });
 
-    let response = firebase
-        .client
+    // Handle Firestore request errors
+    let response = firebase.client
         .post(&url)
         .bearer_auth(&firebase.access_token)
         .json(&body)
         .send()
         .await
-        .expect("Failed to send Firestore request");
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let status = response.status();
-    let response_body = response.text().await.unwrap_or_default();
-
-    println!("✅ Firestore Status: {}", status);
-    println!("✅ Firestore Body: {}", response_body);
-
-    // Parse response
-    let json_response: Vec<serde_json::Value> =
-        serde_json::from_str(&response_body).unwrap_or_default();
-
-    // Check if user exists
-    if let Some(document) = json_response.get(0).and_then(|doc| doc.get("document")) {
-        let fields = document.get("fields").unwrap();
-        let stored_password = fields
-            .get("password")
-            .and_then(|val| val.get("stringValue"))
-            .and_then(|val| val.as_str())
-            .unwrap_or("");
-
-        if stored_password == payload.password {
-            Json(AuthResponse {
-                message: format!("✅ Login successful: {}", payload.email),
-            })
-        } else {
-            Json(AuthResponse {
-                message: "❌ Incorrect password.".to_string(),
-            })
-        }
-    } else {
-        Json(AuthResponse {
-            message: "❌ User not found.".to_string(),
-        })
+    // Check Firestore response status
+    if !response.status().is_success() {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
+
+    let response_body = response.text()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let json_response: Vec<Value> = serde_json::from_str(&response_body)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Extract document from response
+    let document = json_response.get(0)
+        .and_then(|doc| doc.get("document"))
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let fields = document.get("fields")
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let stored_password = fields.get("password")
+        .and_then(|val| val.get("stringValue"))
+        .and_then(|val| val.as_str())
+        .unwrap_or("");
+
+    if stored_password != payload.password {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    Ok(Json(AuthResponse {
+        message: format!("✅ Login successful: {}", payload.username),
+    }))
 }
