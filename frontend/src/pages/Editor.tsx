@@ -10,6 +10,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchFileById, updateFileContent } from "../redux/Slices/fileSlice";
 import { RootState, AppDispatch } from "../redux/store";
 import { useFileSocket } from "../hooks/useFileSocket";
+import axios from "axios";
+
+// Add a type for AI suggestions
+interface AISuggestion {
+  line: number;
+  message: string;
+  severity?: string;
+  fix?: string; // replacement code for the line
+}
 
 const EditorPage = () => {
   const { projectId, fileId } = useParams();
@@ -18,6 +27,7 @@ const EditorPage = () => {
   useApplyTheme();
   const monaco = useMonaco();
   const editorRef = useRef<any>(null);
+  const decorationIdsRef = useRef<string[]>([]);
 
   const currentUser = "Ananya";
   const [lineEditors, setLineEditors] = useState<{ [line: number]: string }>({});
@@ -30,6 +40,9 @@ const EditorPage = () => {
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [collaborators] = useState<string[]>(["Ananya", "Ajay", "Sai"]);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAISidebar, setShowAISidebar] = useState(false);
 
   const { activeFile, loading } = useSelector((state: RootState) => state.file);
   const content = activeFile?.content || "";
@@ -55,9 +68,10 @@ const EditorPage = () => {
     });
   };
 
+  // Keep the original useEffect for lineEditors decorations
   useEffect(() => {
     if (!monaco || !editorRef.current) return;
-    const decorations = Object.entries(lineEditors).map(([line, user]) => ({
+    const userDecorations = Object.entries(lineEditors).map(([line, user]) => ({
       range: new monaco.Range(Number(line), 1, Number(line), 1),
       options: {
         isWholeLine: false,
@@ -67,8 +81,36 @@ const EditorPage = () => {
         },
       },
     }));
-    editorRef.current.deltaDecorations([], decorations);
+    editorRef.current.deltaDecorations([], userDecorations);
   }, [lineEditors, monaco]);
+
+  // Separate useEffect for AI suggestions decorations
+  useEffect(() => {
+    if (!monaco || !editorRef.current) return;
+    // Remove old AI suggestion decorations
+    decorationIdsRef.current = editorRef.current.deltaDecorations(
+      decorationIdsRef.current,
+      []
+    );
+    if (!aiSuggestions || aiSuggestions.length === 0) return;
+    // Map suggestions to Monaco decorations
+    const aiDecorations = aiSuggestions.map((sugg) => {
+      const line = sugg.line || 1;
+      return {
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          inlineClassName: "ai-suggestion-underline",
+          glyphMarginClassName: "ai-suggestion-glyph",
+          hoverMessage: { value: sugg.message },
+        },
+      };
+    });
+    decorationIdsRef.current = editorRef.current.deltaDecorations(
+      decorationIdsRef.current,
+      aiDecorations
+    );
+  }, [aiSuggestions, monaco]);
 
   const handleRun = () => {
     if (localCode.includes('printf("Hello, world!')) {
@@ -90,6 +132,49 @@ const EditorPage = () => {
       setMessages((prev) => [...prev, `${currentUser}: ${input}`]);
       setInput("");
     }
+  };
+
+  const handleAIReview = async () => {
+    setAiLoading(true);
+    try {
+      const res = await axios.post("/ai/review", {
+        language: "python", // TODO: dynamically set language
+        code: localCode,
+      });
+      setAiSuggestions(res.data.suggestions || []);
+    } catch (err) {
+      setAiSuggestions([]);
+      // Optionally show error
+    }
+    setAiLoading(false);
+  };
+
+  // Function to jump to a line in the editor
+  const jumpToLine = (line: number) => {
+    if (editorRef.current) {
+      editorRef.current.revealLineInCenter(line);
+      editorRef.current.setPosition({ lineNumber: line, column: 1 });
+      editorRef.current.focus();
+    }
+  };
+
+  // Handler to ignore a suggestion
+  const handleIgnoreSuggestion = (idx: number) => {
+    setAiSuggestions((prev) => prev.filter((_, i) => i !== idx));
+  };
+  // Handler to apply a suggestion (if fix is present)
+  const handleApplySuggestion = (sugg: AISuggestion, idx: number) => {
+    if (!sugg.fix) return;
+    const codeLines = localCode.split("\n");
+    // Replace the line (1-based index)
+    codeLines[sugg.line - 1] = sugg.fix;
+    const newCode = codeLines.join("\n");
+    setLocalCode(newCode);
+    // Optionally, update backend and broadcast
+    dispatch(updateFileContent({ fileId: fileId!, content: newCode }));
+    emitFileUpdate(newCode);
+    // Remove the suggestion
+    setAiSuggestions((prev) => prev.filter((_, i) => i !== idx));
   };
 
   return (
@@ -191,6 +276,21 @@ const EditorPage = () => {
             <input type="checkbox" checked={autosave} onChange={(e) => setAutosave(e.target.checked)} />
             <span>Autosave</span>
           </label>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleAIReview}
+              className="bg-neonGreen text-black px-3 py-1 rounded hover:bg-green-400 transition"
+              disabled={aiLoading}
+            >
+              {aiLoading ? "Reviewing..." : "AI Review"}
+            </button>
+            <button
+              onClick={() => setShowAISidebar((prev) => !prev)}
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+            >
+              {showAISidebar ? "Hide AI Suggestions" : "Show AI Suggestions"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -210,6 +310,58 @@ const EditorPage = () => {
           </div>
         </div>
       )}
+
+      {/* AI Suggestions Sidebar */}
+      {showAISidebar && (
+        <div className="fixed top-0 right-0 h-full w-80 bg-gray-900 text-white shadow-lg z-50 p-4 overflow-y-auto border-l border-neonGreen">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold">AI Suggestions</h2>
+            <button onClick={() => setShowAISidebar(false)} className="text-neonGreen text-xl">&times;</button>
+          </div>
+          {aiSuggestions.length === 0 ? (
+            <div className="text-gray-400">No suggestions yet.</div>
+          ) : (
+            <ul className="space-y-3">
+              {aiSuggestions.map((sugg, idx) => (
+                <li
+                  key={idx}
+                  className="bg-gray-800 rounded p-2 cursor-pointer hover:bg-gray-700 border-l-4 border-red-500"
+                  onClick={() => jumpToLine(sugg.line)}
+                >
+                  <div className="font-semibold">Line {sugg.line}</div>
+                  <div className="text-sm">{sugg.message}</div>
+                  {sugg.severity && (
+                    <div className="text-xs text-yellow-400 mt-1">{sugg.severity}</div>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    {sugg.fix && (
+                      <button
+                        className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
+                        onClick={e => { e.stopPropagation(); handleApplySuggestion(sugg, idx); }}
+                      >Apply</button>
+                    )}
+                    <button
+                      className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                      onClick={e => { e.stopPropagation(); handleIgnoreSuggestion(idx); }}
+                    >Ignore</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <style>{`
+  .ai-suggestion-underline {
+    text-decoration: wavy underline red;
+  }
+  .ai-suggestion-glyph {
+    background: url('data:image/svg+xml;utf8,<svg fill="red" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6"/></svg>') no-repeat center center;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+  }
+`}</style>
     </div>
   );
 };

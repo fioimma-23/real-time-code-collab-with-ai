@@ -16,6 +16,7 @@ mod connection {
 mod routers {
     pub mod login;
     pub mod project;
+    pub mod ai_review;
 }
 
 
@@ -25,6 +26,7 @@ use crate::connection::real_time::RealtimeDatabaseService;
 
 use routers::login::auth_routes;
 use routers::project::project_routes;
+use routers::ai_review::ai_review_routes;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -52,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .nest("/auth", auth_routes(Arc::clone(&firebase)))
         .nest("/project", project_routes(Arc::clone(&firebase)))
+        .nest("/ai", ai_review_routes())
         .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 5000));

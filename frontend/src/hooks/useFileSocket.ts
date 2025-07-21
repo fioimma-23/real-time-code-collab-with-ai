@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { updateFileContent } from "../redux/Slices/fileSlice";
 import { io, Socket } from "socket.io-client";
@@ -8,15 +8,26 @@ interface FileUpdatePayload {
   content: string;
 }
 
-export const useFileSocket = (projectId: string, fileId: string) => {
+interface ActiveUser {
+  userId: string;
+  userName: string;
+}
+
+export const useFileSocket = (
+  projectId: string,
+  fileId: string,
+  userId: string,
+  userName: string
+) => {
   const dispatch = useDispatch();
   const socketRef = useRef<Socket | null>(null);
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
 
   useEffect(() => {
     const socket = io("http://localhost:5000");
     socketRef.current = socket;
 
-    socket.emit("join-file", { projectId, fileId });
+    socket.emit("join-file", { projectId, fileId, userId, userName });
 
     socket.on("file-updated", (payload: FileUpdatePayload) => {
       if (payload.fileId === fileId) {
@@ -24,15 +35,25 @@ export const useFileSocket = (projectId: string, fileId: string) => {
       }
     });
 
+    socket.on("active-users", (users: ActiveUser[]) => {
+      setActiveUsers(users);
+    });
+    socket.on("user-joined", (user: ActiveUser) => {
+      setActiveUsers((prev) => [...prev, user]);
+    });
+    socket.on("user-left", (user: ActiveUser) => {
+      setActiveUsers((prev) => prev.filter(u => u.userId !== user.userId));
+    });
+
     return () => {
-      socket.emit("leave-file", { projectId, fileId });
+      socket.emit("leave-file", { projectId, fileId, userId });
       socket.disconnect();
     };
-  }, [projectId, fileId, dispatch]);
+  }, [projectId, fileId, userId, userName, dispatch]);
 
   const emitFileUpdate = (content: string) => {
     socketRef.current?.emit("update-file", { fileId, content });
   };
 
-  return { emitFileUpdate };
+  return { emitFileUpdate, activeUsers };
 };
