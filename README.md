@@ -87,6 +87,3 @@ npm start
 - Add live cursor/selection sharing for a Google Docs-like experience.
 
 ---
-
-## **License**
-MIT 
